@@ -10,9 +10,10 @@ class Comic:
             imprint: str,
             date: str,
             genre: str,
-            sub_genre: str,
+            sub_genre: list[str],
             writing: str,
-            art: str,
+            penciling: str,
+            inking: str,
             colors: str,
             letters: str,
     ):
@@ -26,7 +27,8 @@ class Comic:
         self.genre = genre
         self.sub_genre = sub_genre
         self.writing = writing
-        self.art = art
+        self.penciling = penciling
+        self.inking = inking
         self.colors = colors
         self.letters = letters
         self.variations = []
@@ -44,7 +46,8 @@ class Comic:
             genre=data["genre"],
             sub_genre=data["sub_genre"],
             writing=data["writing"],
-            art=data["art"],
+            penciling=data["penciling"],
+            inking=data["inking"],
             colors=data["colors"],
             letters=data["letters"]
         )
@@ -72,7 +75,7 @@ class ComicVariation:
     @classmethod
     def from_dict(cls, data: dict) -> "ComicVariation":
         return cls(
-            state = data(["state"]),
+            state = data["state"],
             price_usd = data["price_usd"],
             price_brl = data["price_brl"],
             stock = data.get("stock", 0)

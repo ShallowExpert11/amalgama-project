@@ -2,9 +2,3 @@
 # Projeto final de PBC
 
 # Módulo principal do programa
-from database import DataBase
-
-database = DataBase()
-comics = database.load_comics()
-
-print(comics)
