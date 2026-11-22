@@ -1,0 +1,13 @@
+[
+    {
+        "name": "System Administrator",
+        "username": "admin",
+        "password_hash": "b0648e5dcb86dcbf41c31bc3e86b93c0c2996c98dfcada7b595e53bcdce38bcf",
+        "password_salt": "c46b46547eac13f9c1cc500ef1757d39",
+        "role": "admin",
+        "permissions": [
+            "manage_comics",
+            "manage_users"
+        ]
+    }
+]
