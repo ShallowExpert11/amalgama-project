@@ -1,0 +1,13 @@
+[
+    {
+        "name": "Amalgama Admin",
+        "username": "AmalgamaAdmin",
+        "password_hash": "82a1c570451779b1401475f2567e37506a55282209dc22b088187290e43e5109",
+        "password_salt": "a767d4bc8e2bfdf85cfba93f308695f0",
+        "role": "admin",
+        "permissions": [
+            "manage_comics",
+            "manage_users"
+        ]
+    }
+]
