@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import math
 import secrets
 
 
@@ -10,7 +11,7 @@ class Comic:
             title_eng: str,
             title_pt: str | None,
             saga_eng: str,
-            saga_pt: str,
+            saga_pt: str | None,
             publisher: str,
             imprint: str,
             date: str,
@@ -22,6 +23,37 @@ class Comic:
             colors: str,
             letters: str,
     ):
+        required_fields = {
+            "English title": title_eng,
+            "English series": saga_eng,
+            "publisher": publisher,
+            "imprint": imprint,
+            "date": date,
+            "genre": genre,
+            "writer": writing,
+            "penciler": penciling,
+            "inker": inking,
+            "colorist": colors,
+            "letterer": letters,
+        }
+        for label, value in required_fields.items():
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{label} cannot be empty.")
+
+        for label, value in (
+            ("Portuguese title", title_pt),
+            ("Portuguese series", saga_pt),
+        ):
+            if value is not None and (
+                not isinstance(value, str) or not value.strip()
+            ):
+                raise ValueError(f"{label} must be text or None.")
+
+        if not isinstance(sub_genre, list) or not sub_genre:
+            raise ValueError("At least one subgenre is required.")
+        if any(not isinstance(item, str) or not item.strip() for item in sub_genre):
+            raise ValueError("Subgenres must be non-empty text.")
+
         self.title_eng = title_eng
         self.title_pt = title_pt
         self.saga_eng = saga_eng
@@ -94,6 +126,18 @@ class ComicVariation:
             price_brl: float,
             stock: int
     ):
+        if not state.strip():
+            raise ValueError("Comic variation state cannot be empty.")
+        if not isinstance(stock, int) or isinstance(stock, bool):
+            raise TypeError("Stock must be an integer.")
+        if stock < 0:
+            raise ValueError("Stock cannot be negative.")
+        for price in (price_usd, price_brl):
+            if not isinstance(price, (int, float)) or isinstance(price, bool):
+                raise TypeError("Prices must be numbers.")
+            if not math.isfinite(price) or price < 0:
+                raise ValueError("Prices must be finite and non-negative.")
+
         self.state = state
         self.price_usd = price_usd
         self.price_brl = price_brl
@@ -172,6 +216,7 @@ class ComicCatalog:
 
 class User:
     _PASSWORD_ITERATIONS = 600_000
+    _MIN_PASSWORD_LENGTH = 12
 
     def __init__(
             self,
@@ -188,8 +233,15 @@ class User:
 
     @classmethod
     def register(cls, name: str, username: str, password: str) -> "User":
-        if not password:
-            raise ValueError("Password cannot be empty.")
+        password_hash, password_salt = cls._make_password_credentials(password)
+        return cls(name, username, password_hash, password_salt)
+
+    @classmethod
+    def _make_password_credentials(cls, password: str) -> tuple[str, str]:
+        if len(password) < cls._MIN_PASSWORD_LENGTH:
+            raise ValueError(
+                f"Password must contain at least {cls._MIN_PASSWORD_LENGTH} characters."
+            )
 
         salt = secrets.token_bytes(16)
         password_hash = hashlib.pbkdf2_hmac(
@@ -198,8 +250,7 @@ class User:
             salt,
             cls._PASSWORD_ITERATIONS,
         )
-
-        return cls(name, username, password_hash.hex(), salt.hex())
+        return password_hash.hex(), salt.hex()
 
     def verify_password(self, password: str) -> bool:
         salt = bytes.fromhex(self.password_salt)
@@ -242,6 +293,23 @@ class Admin(User):
         super().__init__(name, username, password_hash, password_salt)
         self.role = "admin"
         self.permissions = permissions if permissions is not None else []
+
+    @classmethod
+    def register(
+            cls,
+            name: str,
+            username: str,
+            password: str,
+            permissions: list[str] | None = None,
+    ) -> "Admin":
+        password_hash, password_salt = cls._make_password_credentials(password)
+        return cls(
+            name,
+            username,
+            password_hash,
+            password_salt,
+            permissions,
+        )
 
     def to_dict(self) -> dict:
         data = super().to_dict()

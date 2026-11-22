@@ -12,9 +12,14 @@ class DataBase:
             if data_directory is not None
             else Path(__file__).resolve().parent
         )
+        self.data_directory.mkdir(parents=True, exist_ok=True)
         self.store_path = self.data_directory / "comics_data.json"
         self.users_path = self.data_directory / "users_data.json"
         self.admins_path = self.data_directory / "admin_data.json"
+
+        for account_path in (self.users_path, self.admins_path):
+            if not account_path.exists():
+                self._save_records(account_path, [])
 
     def _load_records(self, path: Path) -> list[dict]:
         with path.open("r", encoding="utf-8") as file:

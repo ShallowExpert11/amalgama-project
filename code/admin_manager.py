@@ -39,24 +39,29 @@ class AdminManager:
         raise PermissionError("Invalid administrator username or password.")
 
     def list_comics(self) -> list[Comic]:
+        self._require_permission("manage_comics")
         return self._catalog.comics.copy()
 
     def find_comics(self, partial_name: str) -> list[Comic]:
+        self._require_permission("manage_comics")
         return self._catalog.find_by_title(partial_name)
 
     def add_comic(self, comic: Comic) -> None:
+        self._require_permission("manage_comics")
         updated_catalog = ComicCatalog(self._catalog.comics.copy())
         updated_catalog.add_comic(comic)
         self._database.save_comics(updated_catalog.comics)
         self._catalog.comics = updated_catalog.comics
 
     def edit_comic(self, current: Comic, replacement: Comic) -> None:
+        self._require_permission("manage_comics")
         updated_catalog = ComicCatalog(self._catalog.comics.copy())
         updated_catalog.edit_comic(current, replacement)
         self._database.save_comics(updated_catalog.comics)
         self._catalog.comics = updated_catalog.comics
 
     def delete_comic(self, comic: Comic) -> None:
+        self._require_permission("manage_comics")
         updated_catalog = ComicCatalog(self._catalog.comics.copy())
         updated_catalog.delete_comic(comic)
         self._database.save_comics(updated_catalog.comics)
@@ -68,6 +73,14 @@ class AdminManager:
             variation_index: int,
             amount: int,
     ) -> None:
+        self._require_permission("manage_comics")
+        if (
+            not isinstance(variation_index, int)
+            or isinstance(variation_index, bool)
+            or variation_index < 0
+        ):
+            raise ValueError("Variation index must be a non-negative integer.")
+
         try:
             comic_index = self._catalog.comics.index(comic)
             variation = comic.variations[variation_index]
@@ -84,6 +97,7 @@ class AdminManager:
         variation.stock = updated_variation.stock
 
     def list_users(self) -> list[dict[str, str]]:
+        self._require_permission("manage_users")
         return [
             {
                 "name": user.name,
@@ -94,6 +108,7 @@ class AdminManager:
         ]
 
     def delete_user(self, username: str) -> None:
+        self._require_permission("manage_users")
         normalized_username = username.strip().casefold()
         users = self._database.load_users()
         matches = [
@@ -109,3 +124,32 @@ class AdminManager:
         user_to_delete = matches[0]
         updated_users = [user for user in users if user is not user_to_delete]
         self._database.save_users(updated_users)
+
+    def change_password(self, current_password: str, new_password: str) -> None:
+        if not self._admin.verify_password(current_password):
+            raise PermissionError("The current password is incorrect.")
+        if not new_password:
+            raise ValueError("New password cannot be empty.")
+
+        updated_admin = Admin.register(
+            name=self._admin.name,
+            username=self._admin.username,
+            password=new_password,
+            permissions=self._admin.permissions,
+        )
+        admins = self._database.load_admins()
+        matching_admins = [
+            index
+            for index, admin in enumerate(admins)
+            if admin.username.casefold() == self._admin.username.casefold()
+        ]
+        if len(matching_admins) != 1:
+            raise ValueError("The administrator account could not be uniquely identified.")
+
+        admins[matching_admins[0]] = updated_admin
+        self._database.save_admins(admins)
+        self._admin = updated_admin
+
+    def _require_permission(self, permission: str) -> None:
+        if permission not in self._admin.permissions:
+            raise PermissionError("Administrator does not have this permission.")
