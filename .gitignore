@@ -1,0 +1,5 @@
+/code/admin_data.json
+/code/users_data.json
+/code/*.tmp
+__pycache__/
+*.py[cod]
