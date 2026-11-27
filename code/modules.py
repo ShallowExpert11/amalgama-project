@@ -1,10 +1,9 @@
+# Arquivo das classes básicas
 import hashlib
 import hmac
 import math
 import secrets
 
-
-# Módulo que detém os modelos essenciais para o funcionamento do código
 class Comic:
     def __init__(
             self,
@@ -24,35 +23,35 @@ class Comic:
             letters: str,
     ):
         required_fields = {
-            "English title": title_eng,
-            "English series": saga_eng,
-            "publisher": publisher,
-            "imprint": imprint,
-            "date": date,
-            "genre": genre,
-            "writer": writing,
-            "penciler": penciling,
-            "inker": inking,
-            "colorist": colors,
-            "letterer": letters,
+            "O título em inglês": title_eng,
+            "A série em inglês": saga_eng,
+            "A editora": publisher,
+            "O selo": imprint,
+            "A data": date,
+            "O gênero": genre,
+            "O roteirista": writing,
+            "O desenhista": penciling,
+            "O arte-finalista": inking,
+            "O colorista": colors,
+            "O letrista": letters,
         }
         for label, value in required_fields.items():
             if not isinstance(value, str) or not value.strip():
-                raise ValueError(f"{label} cannot be empty.")
+                raise ValueError(f"{label} não pode ficar vazio.")
 
         for label, value in (
-            ("Portuguese title", title_pt),
-            ("Portuguese series", saga_pt),
+            ("O título em português", title_pt),
+            ("A série em português", saga_pt),
         ):
             if value is not None and (
                 not isinstance(value, str) or not value.strip()
             ):
-                raise ValueError(f"{label} must be text or None.")
+                raise ValueError(f"{label} deve ser um texto ou não informado.")
 
         if not isinstance(sub_genre, list) or not sub_genre:
-            raise ValueError("At least one subgenre is required.")
+            raise ValueError("Informe pelo menos um subgênero.")
         if any(not isinstance(item, str) or not item.strip() for item in sub_genre):
-            raise ValueError("Subgenres must be non-empty text.")
+            raise ValueError("Os subgêneros não podem ficar vazios.")
 
         self.title_eng = title_eng
         self.title_pt = title_pt
@@ -127,16 +126,16 @@ class ComicVariation:
             stock: int
     ):
         if not state.strip():
-            raise ValueError("Comic variation state cannot be empty.")
+            raise ValueError("A edição/condição do quadrinho não pode ficar vazia.")
         if not isinstance(stock, int) or isinstance(stock, bool):
-            raise TypeError("Stock must be an integer.")
+            raise TypeError("O estoque deve ser um número inteiro.")
         if stock < 0:
-            raise ValueError("Stock cannot be negative.")
+            raise ValueError("O estoque não pode ser negativo.")
         for price in (price_usd, price_brl):
             if not isinstance(price, (int, float)) or isinstance(price, bool):
-                raise TypeError("Prices must be numbers.")
+                raise TypeError("Os preços devem ser números.")
             if not math.isfinite(price) or price < 0:
-                raise ValueError("Prices must be finite and non-negative.")
+                raise ValueError("Os preços devem ser valores finitos e não negativos.")
 
         self.state = state
         self.price_usd = price_usd
@@ -145,11 +144,11 @@ class ComicVariation:
 
     def adjust_stock(self, amount: int) -> None:
         if not isinstance(amount, int) or isinstance(amount, bool):
-            raise TypeError("Stock adjustment must be an integer.")
+            raise TypeError("O ajuste de estoque deve ser um número inteiro.")
 
         updated_stock = self.stock + amount
         if updated_stock < 0:
-            raise ValueError("Stock cannot be negative.")
+            raise ValueError("O estoque não pode ser negativo.")
 
         self.stock = updated_stock
 
@@ -194,8 +193,11 @@ class ComicCatalog:
         return matches
 
     def add_comic(self, comic: Comic) -> None:
-        if comic in self.comics:
-            raise ValueError("This comic is already in the catalog.")
+        if any(
+            existing.title_eng.casefold() == comic.title_eng.casefold()
+            for existing in self.comics
+        ):
+            raise ValueError("Já existe um quadrinho com esse título em inglês.")
 
         self.comics.append(comic)
 
@@ -203,7 +205,7 @@ class ComicCatalog:
         try:
             index = self.comics.index(current)
         except ValueError as error:
-            raise ValueError("The comic is not in this catalog.") from error
+            raise ValueError("O quadrinho não está neste catálogo.") from error
 
         self.comics[index] = replacement
 
@@ -211,12 +213,12 @@ class ComicCatalog:
         try:
             self.comics.remove(comic)
         except ValueError as error:
-            raise ValueError("The comic is not in this catalog.") from error
+            raise ValueError("O quadrinho não está neste catálogo.") from error
 
 
 class User:
     _PASSWORD_ITERATIONS = 600_000
-    _MIN_PASSWORD_LENGTH = 12
+    _MIN_PASSWORD_LENGTH = 6
 
     def __init__(
             self,
@@ -240,7 +242,8 @@ class User:
     def _make_password_credentials(cls, password: str) -> tuple[str, str]:
         if len(password) < cls._MIN_PASSWORD_LENGTH:
             raise ValueError(
-                f"Password must contain at least {cls._MIN_PASSWORD_LENGTH} characters."
+                f"A senha deve ter pelo menos "
+                f"{cls._MIN_PASSWORD_LENGTH} caracteres."
             )
 
         salt = secrets.token_bytes(16)

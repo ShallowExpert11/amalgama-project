@@ -1,8 +1,8 @@
+# Arquivo das funções de Admin
 import math
 from getpass import getpass
 
-from admin_manager import AdminManager
-from database import DataBase
+from backend import AdminManager, DataBase
 from modules import Admin, Comic, ComicVariation
 
 
@@ -15,7 +15,7 @@ class AdminConsole:
         try:
             self._create_first_admin_if_needed()
         except (OSError, ValueError) as error:
-            print(f"Could not set up administrator: {error}")
+            print(f"Não foi possível configurar o administrador: {error}")
             return
 
         if not self._login():
@@ -35,81 +35,82 @@ class AdminConsole:
 
         while True:
             self._show_menu()
-            choice = input("Choose an option: ").strip()
+            choice = input("Escolha uma opção: ").strip()
             if choice == "0":
                 return
 
             action = actions.get(choice)
             if action is None:
-                print("Choose a listed option.")
+                print("Escolha uma das opções exibidas.")
                 continue
 
             try:
                 action()
             except (OSError, TypeError, ValueError) as error:
-                print(f"Action failed: {error}")
+                print(f"A ação falhou: {error}")
 
     def _create_first_admin_if_needed(self) -> None:
         if self._database.load_admins():
             return
 
-        print("No administrator exists. Create the first admin account.")
-        name = self._prompt_text("Admin name")
-        username = self._prompt_text("Admin username")
+        print("Nenhum administrador cadastrado. Crie a primeira conta admin.")
+        name = self._prompt_text("Nome do administrador")
+        username = self._prompt_text("Nome de usuário do administrador")
         existing_usernames = {
             user.username.casefold()
             for user in self._database.load_users()
         }
         if username.casefold() in existing_usernames:
-            raise ValueError("That username is already in use.")
+            raise ValueError("Esse nome de usuário já está sendo usado.")
 
-        password = getpass("Admin password: ")
-        confirmation = getpass("Confirm password: ")
+        password = getpass("Senha do administrador: ")
+        confirmation = getpass("Confirme a senha: ")
         if password != confirmation:
-            raise ValueError("The passwords do not match.")
+            raise ValueError("As senhas não são iguais.")
 
         admin = Admin.register(name, username, password)
         admin.permissions = ["manage_comics", "manage_users"]
         self._database.save_admins([admin])
-        print("Administrator account created.")
+        print("Conta de administrador criada.")
 
     def _login(self) -> bool:
         for _ in range(3):
-            username = input("Admin username: ").strip()
-            password = getpass("Admin password: ")
+            print("Entre com a conta de administrador.")
+            username = input("Nome de usuário do administrador: ").strip()
+            password = getpass("Senha do administrador: ")
             try:
                 self._manager = AdminManager.authenticate(
                     self._database,
                     username,
                     password,
                 )
-                print("Login successful.")
+                print("Login realizado com sucesso.")
                 return True
             except PermissionError:
-                print("Invalid username or password.")
+                print("Nome de usuário ou senha incorretos.")
 
-        print("Too many failed attempts.")
+        print("Número máximo de tentativas excedido.")
         return False
 
     @staticmethod
     def _show_menu() -> None:
         print(
-            "\n1. List comics\n"
-            "2. Search comics\n"
-            "3. Add comic\n"
-            "4. Edit comic\n"
-            "5. Delete comic\n"
-            "6. Adjust stock\n"
-            "7. List users\n"
-            "8. Delete user\n"
-            "9. Change admin password\n"
-            "0. Exit"
+            "\n1. Listar quadrinhos\n"
+            "2. Pesquisar quadrinhos\n"
+            "3. Adicionar quadrinho\n"
+            "4. Editar quadrinho\n"
+            "5. Remover quadrinho\n"
+            "6. Ajustar estoque\n"
+            "7. Listar usuários\n"
+            "8. Remover usuário\n"
+            "9. Alterar senha do administrador\n"
+            "0. Sair"
         )
 
     def _list_comics(self) -> None:
         comics = self._admin_manager.list_comics()
         if not comics:
-            print("There are no comics in the catalog.")
+            print("Não há quadrinhos no catálogo.")
             return
 
         for index, comic in enumerate(comics, start=1):
@@ -117,10 +118,10 @@ class AdminConsole:
             self._display_comic(comic)
 
     def _search_comics(self) -> None:
-        query = input("Title to search: ")
+        query = input("Título para pesquisar: ")
         comics = self._admin_manager.find_comics(query)
         if not comics:
-            print("No comics matched that search.")
+            print("Nenhum quadrinho corresponde à pesquisa.")
             return
 
         for comic in comics:
@@ -130,146 +131,146 @@ class AdminConsole:
     def _add_comic(self) -> None:
         comic = self._prompt_comic()
         self._admin_manager.add_comic(comic)
-        print("Comic added.")
+        print("Quadrinho adicionado.")
 
     def _edit_comic(self) -> None:
         current = self._select_comic()
         replacement = self._prompt_comic(current)
         self._admin_manager.edit_comic(current, replacement)
-        print("Comic updated.")
+        print("Quadrinho atualizado.")
 
     def _delete_comic(self) -> None:
         comic = self._select_comic()
         confirmation = input(
-            f"Delete {comic.title_eng!r}? Type 'yes' to confirm: "
+            f"Remover {comic.title_eng!r}? Digite 'sim' para confirmar: "
         ).strip().casefold()
-        if confirmation == "yes":
+        if confirmation in {"sim", "s"}:
             self._admin_manager.delete_comic(comic)
-            print("Comic deleted.")
+            print("Quadrinho removido.")
         else:
-            print("Deletion cancelled.")
+            print("Remoção cancelada.")
 
     def _adjust_stock(self) -> None:
         comic = self._select_comic()
         if not comic.variations:
-            print("This comic has no variations.")
+            print("Este quadrinho não possui edições.")
             return
 
         for index, variation in enumerate(comic.variations, start=1):
-            print(f"{index}. {variation.state}: stock {variation.stock}")
+            print(f"{index}. {variation.state}: estoque {variation.stock}")
 
         variation_index = self._prompt_integer(
-            "Variation number",
+            "Número da edição",
             minimum=1,
         ) - 1
         amount = self._prompt_signed_integer(
-            "Stock change (positive to add, negative to remove)"
+            "Alteração do estoque (positivo para adicionar, negativo para remover)"
         )
         self._admin_manager.adjust_stock(comic, variation_index, amount)
-        print("Stock updated.")
+        print("Estoque atualizado.")
 
     def _list_users(self) -> None:
         users = self._admin_manager.list_users()
         if not users:
-            print("There are no registered users.")
+            print("Não há usuários cadastrados.")
             return
 
         for user in users:
             print(f"{user['name']} (@{user['username']})")
 
     def _delete_user(self) -> None:
-        username = input("Username to delete: ").strip()
+        username = input("Nome de usuário para remover: ").strip()
         confirmation = input(
-            f"Delete user {username!r}? Type 'yes' to confirm: "
+            f"Remover o usuário {username!r}? Digite 'sim' para confirmar: "
         ).strip().casefold()
-        if confirmation == "yes":
+        if confirmation in {"sim", "s"}:
             self._admin_manager.delete_user(username)
-            print("User deleted.")
+            print("Usuário removido.")
         else:
-            print("Deletion cancelled.")
+            print("Remoção cancelada.")
 
     def _change_password(self) -> None:
-        current_password = getpass("Current password: ")
-        new_password = getpass("New password: ")
-        confirmation = getpass("Confirm new password: ")
+        current_password = getpass("Senha atual: ")
+        new_password = getpass("Nova senha: ")
+        confirmation = getpass("Confirme a nova senha: ")
         if new_password != confirmation:
-            raise ValueError("The passwords do not match.")
+            raise ValueError("As senhas não são iguais.")
 
         self._admin_manager.change_password(current_password, new_password)
-        print("Password changed.")
+        print("Senha alterada.")
 
     def _select_comic(self) -> Comic:
         comics = self._admin_manager.list_comics()
         if not comics:
-            raise ValueError("The catalog is empty.")
+            raise ValueError("O catálogo está vazio.")
 
         for index, comic in enumerate(comics, start=1):
             print(f"{index}. {comic.title_eng}")
 
-        selection = self._prompt_integer("Comic number", minimum=1)
+        selection = self._prompt_integer("Número do quadrinho", minimum=1)
         if selection > len(comics):
-            raise ValueError("There is no comic with that number.")
+            raise ValueError("Não existe quadrinho com esse número.")
         return comics[selection - 1]
 
     @staticmethod
     def _display_comic(comic: Comic) -> None:
-        print(f"Title: {comic.title_eng}")
+        print(f"Título: {comic.title_eng}")
         if comic.title_pt is not None:
-            print(f"Portuguese title: {comic.title_pt}")
-        print(f"Series: {comic.saga_eng}")
-        print(f"Publisher: {comic.publisher} / {comic.imprint}")
-        print(f"Date: {comic.date}")
-        print(f"Genre: {comic.genre}")
-        print(f"Subgenres: {', '.join(comic.sub_genre)}")
+            print(f"Título em português: {comic.title_pt}")
+        print(f"Série: {comic.saga_eng}")
+        print(f"Editora: {comic.publisher} / {comic.imprint}")
+        print(f"Data: {comic.date}")
+        print(f"Gênero: {comic.genre}")
+        print(f"Subgêneros: {', '.join(comic.sub_genre)}")
         print(
-            f"Writing: {comic.writing}; pencils: {comic.penciling}; "
-            f"inks: {comic.inking}; colors: {comic.colors}; "
-            f"letters: {comic.letters}"
+            f"Roteiro: {comic.writing}; desenho: {comic.penciling}; "
+            f"arte-final: {comic.inking}; cores: {comic.colors}; "
+            f"letras: {comic.letters}"
         )
         for variation in comic.variations:
             print(
                 f"  {variation.state}: USD {variation.price_usd:.2f}, "
-                f"BRL {variation.price_brl:.2f}, stock {variation.stock}"
+                f"BRL {variation.price_brl:.2f}, estoque {variation.stock}"
             )
 
     def _prompt_comic(self, current: Comic | None = None) -> Comic:
         title_eng = self._prompt_text(
-            "English title",
+            "Título em inglês",
             current.title_eng if current else None,
             has_current=current is not None,
         )
         title_pt = self._prompt_optional_text(
-            "Portuguese title (use '-' for none)",
+            "Título em português (use '-' para deixar vazio)",
             current.title_pt if current else None,
             has_current=current is not None,
         )
         saga_eng = self._prompt_text(
-            "English series",
+            "Série em inglês",
             current.saga_eng if current else None,
             has_current=current is not None,
         )
         saga_pt = self._prompt_optional_text(
-            "Portuguese series (use '-' for none)",
+            "Série em português (use '-' para deixar vazio)",
             current.saga_pt if current else None,
             has_current=current is not None,
         )
         publisher = self._prompt_text(
-            "Publisher",
+            "Editora",
             current.publisher if current else None,
             has_current=current is not None,
         )
         imprint = self._prompt_text(
-            "Imprint",
+            "Selo",
             current.imprint if current else None,
             has_current=current is not None,
         )
         date = self._prompt_text(
-            "Date",
+            "Data",
             current.date if current else None,
             has_current=current is not None,
         )
         genre = self._prompt_text(
-            "Genre",
+            "Gênero",
             current.genre if current else None,
             has_current=current is not None,
         )
@@ -277,27 +278,27 @@ class AdminConsole:
             current.sub_genre if current else None
         )
         writing = self._prompt_text(
-            "Writer",
+            "Roteirista",
             current.writing if current else None,
             has_current=current is not None,
         )
         penciling = self._prompt_text(
-            "Penciler",
+            "Desenhista",
             current.penciling if current else None,
             has_current=current is not None,
         )
         inking = self._prompt_text(
-            "Inker",
+            "Arte-finalista",
             current.inking if current else None,
             has_current=current is not None,
         )
         colors = self._prompt_text(
-            "Colorist",
+            "Colorista",
             current.colors if current else None,
             has_current=current is not None,
         )
         letters = self._prompt_text(
-            "Letterer",
+            "Letrista",
             current.letters if current else None,
             has_current=current is not None,
         )
@@ -329,21 +330,21 @@ class AdminConsole:
             current: list[ComicVariation] | None,
     ) -> list[ComicVariation]:
         if current is not None:
-            answer = input("Edit variation list? [y/N]: ").strip().casefold()
-            if answer not in {"y", "yes"}:
+            answer = input("Editar a lista de edições? [s/N]: ").strip().casefold()
+            if answer not in {"s", "sim"}:
                 return [
                     ComicVariation.from_dict(variation.to_dict())
                     for variation in current
                 ]
 
-        count = self._prompt_integer("Number of variations", minimum=0)
+        count = self._prompt_integer("Número de edições", minimum=0)
         variations = []
         for index in range(count):
-            print(f"Variation {index + 1}")
-            state = self._prompt_text("Condition/state")
-            price_usd = self._prompt_nonnegative_float("Price in USD")
-            price_brl = self._prompt_nonnegative_float("Price in BRL")
-            stock = self._prompt_integer("Stock", minimum=0)
+            print(f"Edição {index + 1}")
+            state = self._prompt_text("Estado/condição")
+            price_usd = self._prompt_nonnegative_float("Preço em USD")
+            price_brl = self._prompt_nonnegative_float("Preço em BRL")
+            stock = self._prompt_integer("Estoque", minimum=0)
             variations.append(
                 ComicVariation(state, price_usd, price_brl, stock)
             )
@@ -360,14 +361,14 @@ class AdminConsole:
                 answer = input(f"{label} [{current}]: ").strip()
                 if not answer:
                     if current is None:
-                        raise ValueError(f"{label} cannot be empty.")
+                        raise ValueError(f"{label} não pode ficar vazio.")
                     return current
             else:
                 answer = input(f"{label}: ").strip()
 
             if answer:
                 return answer
-            print("A value is required.")
+            print("Este campo é obrigatório.")
 
     @staticmethod
     def _prompt_optional_text(
@@ -377,13 +378,13 @@ class AdminConsole:
     ) -> str | None:
         if has_current:
             answer = input(
-                f"{label} [{current if current is not None else 'none'}] "
-                "(blank keeps current, '-' clears): "
+                f"{label} [{current if current is not None else 'nenhum'}] "
+                "(deixe em branco para manter, '-' para limpar): "
             ).strip()
             if not answer:
                 return current
         else:
-            answer = input(f"{label} (optional): ").strip()
+            answer = input(f"{label} (opcional): ").strip()
 
         return None if answer == "-" or not answer else answer
 
@@ -391,11 +392,11 @@ class AdminConsole:
     def _prompt_subgenres(current: list[str] | None) -> list[str]:
         while True:
             if current is None:
-                answer = input("Subgenres (comma-separated): ").strip()
+                answer = input("Subgêneros (separados por vírgula): ").strip()
             else:
                 existing = ", ".join(current)
                 answer = input(
-                    f"Subgenres [{existing}] (comma-separated): "
+                    f"Subgêneros [{existing}] (separados por vírgula): "
                 ).strip()
                 if not answer:
                     return current.copy()
@@ -403,7 +404,7 @@ class AdminConsole:
             subgenres = [item.strip() for item in answer.split(",") if item.strip()]
             if subgenres:
                 return subgenres
-            print("Enter at least one subgenre.")
+            print("Informe pelo menos um subgênero.")
 
     @staticmethod
     def _prompt_integer(label: str, minimum: int) -> int:
@@ -411,11 +412,11 @@ class AdminConsole:
             try:
                 value = int(input(f"{label}: "))
                 if value < minimum:
-                    print(f"Enter a number no smaller than {minimum}.")
+                    print(f"Informe um número maior ou igual a {minimum}.")
                     continue
                 return value
             except ValueError:
-                print("Enter a whole number.")
+                print("Informe um número inteiro.")
 
     @staticmethod
     def _prompt_signed_integer(label: str) -> int:
@@ -423,7 +424,7 @@ class AdminConsole:
             try:
                 return int(input(f"{label}: "))
             except ValueError:
-                print("Enter a whole number.")
+                print("Informe um número inteiro.")
 
     @staticmethod
     def _prompt_nonnegative_float(label: str) -> float:
@@ -431,14 +432,14 @@ class AdminConsole:
             try:
                 value = float(input(f"{label}: "))
                 if not math.isfinite(value) or value < 0:
-                    print("Enter a finite, non-negative amount.")
+                    print("Informe um valor finito e não negativo.")
                     continue
                 return value
             except ValueError:
-                print("Enter a valid number.")
+                print("Informe um número válido.")
 
     @property
     def _admin_manager(self) -> AdminManager:
         if self._manager is None:
-            raise RuntimeError("The administrator has not logged in.")
+            raise RuntimeError("O administrador ainda não fez login.")
         return self._manager
